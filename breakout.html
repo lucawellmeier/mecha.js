@@ -20,33 +20,34 @@
 
     <script src="mecha.js"></script>
     <script>
+  
 var game = new Game("myCanvas")
-var ballRadius = 10;
-var x = game.width/2;
-var y = game.height-30;
-var dx = 2;
-var dy = -2;
-var paddleHeight = 10;
-var paddleWidth = 75;
-var paddleX = (game.width-paddleWidth)/2;
-var rightPressed = false;
-var leftPressed = false;
-var brickRowCount = 5;
-var brickColumnCount = 3;
-var brickWidth = 75;
-var brickHeight = 20;
-var brickPadding = 10;
-var brickOffsetTop = 30;
-var brickOffsetLeft = 30;
 var score = 0;
 var lives = 3;
+var outcome = 0;
+
+var ball = new Entity(game);
+ball.add(new Transform(game.width / 2, game.height - 30, 3, -3));
+ball.add(new AABB(20, 20));
+ball.add(new BallShape("#0095DD"));
+
+var paddle = new Entity(game);
+paddle.add(new Transform(game.width / 2, game.height - 5));
+paddle.add(new AABB(75, 10));
+paddle.add(new BoxShape("#0095DD"));
 
 var bricks = [];
-for(var c=0; c<brickColumnCount; c++) {
-  bricks[c] = [];
-  for(var r=0; r<brickRowCount; r++) {
-    bricks[c][r] = { x: 0, y: 0, status: 1 };
-  }
+var brickRows = 5;
+var brickCols = 3;
+for(var i = 0; i < brickRows; i++) {
+    bricks.push([]);
+    for(var j = 0; j < brickCols; j++) {
+        var brick = new Entity(game); 
+        brick.add(new Transform(i*85 + 70, j*30 + 50));
+        brick.add(new AABB(75, 20));
+        brick.add(new BoxShape("#0095DD"));
+        bricks[i].push(brick);
+    }
 }
 
 game.registerKey("ArrowRight");
@@ -60,79 +61,78 @@ game.initKeyListeners();
 //  }
 //}
 function collisionDetection() {
-  for(var c=0; c<brickColumnCount; c++) {
-    for(var r=0; r<brickRowCount; r++) {
-      var b = bricks[c][r];
-      if(b.status == 1) {
-        if(x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
-          dy = -dy;
-          b.status = 0;
-          score++;
-          if(score == brickRowCount*brickColumnCount) {
-            //alert("YOU WIN, CONGRATS!");
-            document.location.reload();
-          }
+    for(var i = 0; i < brickRows; i++) {
+        for(var j = 0; j < brickCols; j++) {
+            var brick = bricks[i][j];
+            if (!brick.has('aabb')) continue;
+            if (ball.get('aabb').intersects(brick.get('aabb'))) {
+                ball.get('transform').vy *= -1;
+                brick.remove('aabb');
+                brick.remove('boxshape');
+                score++;
+
+                if(score == brickRows*brickCols) {
+                    outcome = 1;
+                }
+
+                return; // so that it doesn't collide with two in the same frame
+            }
         }
-      }
     }
-  }
 }
 
 function draw() {
     game.clear();
-    for(var c=0; c<brickColumnCount; c++) {
-        for(var r=0; r<brickRowCount; r++) {
-            if(bricks[c][r].status == 1) {
-                var brickX = (r*(brickWidth+brickPadding))+brickOffsetLeft;
-                var brickY = (c*(brickHeight+brickPadding))+brickOffsetTop;
-                bricks[c][r].x = brickX;
-                bricks[c][r].y = brickY;
-                game.drawRect("#0095DD", brickX, brickY, brickWidth, brickHeight)
-            }
+    for(var i = 0; i < brickRows; i++) {
+        for(var j = 0; j < brickCols; j++) {
+            bricks[i][j].draw();
         }
     }
-    game.drawBall("#0095DD", x, y, ballRadius);
-    game.drawRect("#0095DD", paddleX, game.height-paddleHeight, paddleWidth, paddleHeight);
+    ball.draw();
+    paddle.draw();
+
     game.write("#0095DD", "16px Arial", 8, 20, "Score: "+score);
     game.write("#0095DD", "16px Arial", game.width-65, 20, "Lives: "+lives);
     collisionDetection();
 
-    if(x + dx > game.width-ballRadius || x + dx < ballRadius) {
-      dx = -dx;
+    var p = paddle.get('aabb');
+    var b = ball.get('aabb');
+    vx = ball.get('transform').vx;
+    vy = ball.get('transform').vy;
+
+    if (b.x + b.w + vx > game.width || b.x + vx < 0) {
+        ball.get('transform').vx *= -1;
     }
-    if(y + dy < ballRadius) {
-      dy = -dy;
+    if (b.y + vy < 0) {
+        ball.get('transform').vy *= -1;
     }
-    else if(y + dy > game.height-ballRadius) {
-      if(x > paddleX && x < paddleX + paddleWidth) {
-        dy = -dy;
-      }
-      else {
-        lives--;
-        if(!lives) {
-          //alert("GAME OVER");
-          document.location.reload();
+    if (b.y + b.h + vy > p.y) {
+        if (b.x + vx + b.w/2 > p.x && b.x + vx - b.w/2 < p.x + p.w) {
+            ball.get('transform').vy *= -1;
+        } else if (!outcome) {
+            lives--;
+            if(!lives) {
+                outcome = -1;
+            } else {
+                ball.get('transform').cx = game.width / 2;
+                ball.get('transform').cy = game.height - 30;
+                ball.get('transform').vx = Math.abs(vx) + 0.5;
+                ball.get('transform').vy = -(Math.abs(vy) + 0.5);
+                paddle.get('transform').cx = game.width / 2;
+            }
         }
-        else {
-          x = game.width/2;
-          y = game.height-30;
-          dx = 3;
-          dy = -3;
-          paddleX = (game.width-paddleWidth)/2;
-        }
-      }
     }
 
-  if(game.keyState['ArrowRight'] && paddleX < game.width-paddleWidth) {
-    paddleX += 7;
-  }
-  else if(game.keyState['ArrowLeft'] && paddleX > 0) {
-    paddleX -= 7;
-  }
+    if (!outcome) {
+        if (game.keyState['ArrowRight'] && p.x + p.w < game.width) {
+            paddle.get('transform').cx += 7;
+        } else if (game.keyState['ArrowLeft'] && p.x > 0) {
+            paddle.get('transform').cx -= 7;
+        }
+    }
 
-  x += dx;
-  y += dy;
-  requestAnimationFrame(draw);
+    if (!outcome) ball.update();
+    requestAnimationFrame(draw);
 }
 
 draw();
