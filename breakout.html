@@ -36,13 +36,13 @@ paddle.add(new AABB(75, 10));
 paddle.add(new BoxShape("#0095DD"));
 
 var bricks = [];
-var brickRows = 5;
-var brickCols = 3;
+var brickRows = 3;
+var brickCols = 5;
 for(var i = 0; i < brickRows; i++) {
     bricks.push([]);
     for(var j = 0; j < brickCols; j++) {
         var brick = game.createEntity(); 
-        brick.add(new Transform(i*85 + 70, j*30 + 50));
+        brick.add(new Transform(j*85 + 70, i*30 + 50));
         brick.add(new AABB(75, 20));
         brick.add(new BoxShape("#0095DD"));
         bricks[i].push(brick);
