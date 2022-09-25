@@ -16,7 +16,6 @@ class Entity {
     }
 
     add(compObj) {
-        compObj.game = this.game;
         compObj.entity = this;
         this.components[compObj.name] = compObj;
     }
@@ -34,7 +33,7 @@ class Entity {
 class Component {
     constructor(name) {
         this.name = name;
-        this.game = null;
+        this.game = game;
         this.entity = null;
     }
     update() {}
@@ -99,6 +98,19 @@ class Game {
         this.width = canvas.width;
         this.height = canvas.height;
         this.keyState = {};
+        this.entities = [];
+    }
+
+    createEntity() {
+        var entity = new Entity(this);
+        this.entities.push(entity);
+        return entity;
+    }
+    draw() {
+        this.ctx.clearRect(0, 0, this.width, this.height);
+        this.entities.forEach(e => {
+            e.draw();
+        });
     }
 
     registerKey(key) {
@@ -119,9 +131,6 @@ class Game {
         document.addEventListener("keyup", this._keyUpHandler.bind(this), false);
     }
 
-    clear() {
-        this.ctx.clearRect(0, 0, this.width, this.height);
-    }
     drawRect(color,x,y,w,h) {
         this.ctx.beginPath();
         this.ctx.rect(x, y, w, h);

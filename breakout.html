@@ -26,12 +26,12 @@ var score = 0;
 var lives = 3;
 var outcome = 0;
 
-var ball = new Entity(game);
+var ball = game.createEntity();
 ball.add(new Transform(game.width / 2, game.height - 30, 3, -3));
 ball.add(new AABB(20, 20));
 ball.add(new BallShape("#0095DD"));
 
-var paddle = new Entity(game);
+var paddle = game.createEntity();
 paddle.add(new Transform(game.width / 2, game.height - 5));
 paddle.add(new AABB(75, 10));
 paddle.add(new BoxShape("#0095DD"));
@@ -42,7 +42,7 @@ var brickCols = 3;
 for(var i = 0; i < brickRows; i++) {
     bricks.push([]);
     for(var j = 0; j < brickCols; j++) {
-        var brick = new Entity(game); 
+        var brick = game.createEntity(); 
         brick.add(new Transform(i*85 + 70, j*30 + 50));
         brick.add(new AABB(75, 20));
         brick.add(new BoxShape("#0095DD"));
@@ -81,16 +81,8 @@ function collisionDetection() {
     }
 }
 
-function draw() {
-    game.clear();
-    for(var i = 0; i < brickRows; i++) {
-        for(var j = 0; j < brickCols; j++) {
-            bricks[i][j].draw();
-        }
-    }
-    ball.draw();
-    paddle.draw();
-
+function mainloop() {
+    game.draw();
     game.write("#0095DD", "16px Arial", 8, 20, "Score: "+score);
     game.write("#0095DD", "16px Arial", game.width-65, 20, "Lives: "+lives);
     collisionDetection();
@@ -132,10 +124,10 @@ function draw() {
     }
 
     if (!outcome) ball.update();
-    requestAnimationFrame(draw);
+    requestAnimationFrame(mainloop);
 }
 
-draw();
+mainloop();
     </script>
   </body>
 </html>
