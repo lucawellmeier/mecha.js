@@ -2,7 +2,7 @@
 <html lang="en-US">
   <head>
     <meta charset="utf-8" />
-    <title>Simple Breakout Game</title>
+    <title>Breakout</title>
     <style>
       * {
         padding: 0;
@@ -20,7 +20,6 @@
 
     <script src="mecha.js"></script>
     <script>
-  
 var game = new Game("myCanvas");
 game.registerKey("ArrowRight");
 game.registerKey("ArrowLeft");
@@ -55,20 +54,14 @@ var lives = 3;
 var outcome = 0;
 
 var scoreCounter = game.createEntity();
-scoreCounter.add(new Transform(30, 28));
+scoreCounter.add(new Transform(55, 28));
 scoreCounter.add(new TextDisplay("#0095DD", "16px Arial", "Score: "+score));
 
 var livesCounter = game.createEntity();
-livesCounter.add(new Transform(game.width - 85, 28));
+livesCounter.add(new Transform(game.width - 53, 28));
 livesCounter.add(new TextDisplay("#0095DD", "16px Arial", "Lives: "+lives));
 
-//function mouseMoveHandler(e) {
-//  var relativeX = e.clientX - canvas.offsetLeft;
-//  if(relativeX > 0 && relativeX < canvas.width) {
-//    paddleX = relativeX - paddleWidth/2;
-//  }
-//}
-function collisionDetection() {
+function update_logic() {
     for(var i = 0; i < brickRows; i++) {
         for(var j = 0; j < brickCols; j++) {
             var brick = bricks[i][j];
@@ -88,11 +81,6 @@ function collisionDetection() {
             }
         }
     }
-}
-
-function mainloop() {
-    game.draw();
-    collisionDetection();
 
     var p = paddle.get('aabb');
     var b = ball.get('aabb');
@@ -130,13 +118,20 @@ function mainloop() {
         } else if (game.keyState['ArrowLeft'] && p.x > 0) {
             paddle.get('transform').cx -= 7;
         }
+    } else {
+        ball.get("transform").vx = 0;
+        ball.get("transform").vy = 0;
     }
-
-    if (!outcome) ball.update();
-    requestAnimationFrame(mainloop);
 }
 
-mainloop();
+//function mouseMoveHandler(e) {
+//  var relativeX = e.clientX - canvas.offsetLeft;
+//  if(relativeX > 0 && relativeX < canvas.width) {
+//    paddleX = relativeX - paddleWidth/2;
+//  }
+//}
+
+game.run(update_logic);
     </script>
   </body>
 </html>

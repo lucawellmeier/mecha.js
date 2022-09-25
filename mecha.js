@@ -127,6 +127,21 @@ class Game {
             e.draw();
         });
     }
+    update() {
+        this.entities.forEach(e => {
+            e.update();
+        });
+    }
+    _mainloop() {
+        this.draw();
+        this._update_logic();
+        this.update();
+        requestAnimationFrame(this._mainloop.bind(this));
+    }
+    run(update_logic) {
+        this._update_logic = update_logic;
+        this._mainloop();
+    }
 
     registerKey(key) {
         this.keyState[key] = false;
