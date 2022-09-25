@@ -21,10 +21,10 @@
     <script src="mecha.js"></script>
     <script>
   
-var game = new Game("myCanvas")
-var score = 0;
-var lives = 3;
-var outcome = 0;
+var game = new Game("myCanvas");
+game.registerKey("ArrowRight");
+game.registerKey("ArrowLeft");
+game.initKeyListeners();
 
 var ball = game.createEntity();
 ball.add(new Transform(game.width / 2, game.height - 30, 3, -3));
@@ -50,9 +50,17 @@ for(var i = 0; i < brickRows; i++) {
     }
 }
 
-game.registerKey("ArrowRight");
-game.registerKey("ArrowLeft");
-game.initKeyListeners();
+var score = 0;
+var lives = 3;
+var outcome = 0;
+
+var scoreCounter = game.createEntity();
+scoreCounter.add(new Transform(30, 28));
+scoreCounter.add(new TextDisplay("#0095DD", "16px Arial", "Score: "+score));
+
+var livesCounter = game.createEntity();
+livesCounter.add(new Transform(game.width - 85, 28));
+livesCounter.add(new TextDisplay("#0095DD", "16px Arial", "Lives: "+lives));
 
 //function mouseMoveHandler(e) {
 //  var relativeX = e.clientX - canvas.offsetLeft;
@@ -70,6 +78,7 @@ function collisionDetection() {
                 brick.remove('aabb');
                 brick.remove('boxshape');
                 score++;
+                scoreCounter.get("textdisplay").text = "Score: "+score;
 
                 if(score == brickRows*brickCols) {
                     outcome = 1;
@@ -83,14 +92,12 @@ function collisionDetection() {
 
 function mainloop() {
     game.draw();
-    game.write("#0095DD", "16px Arial", 8, 20, "Score: "+score);
-    game.write("#0095DD", "16px Arial", game.width-65, 20, "Lives: "+lives);
     collisionDetection();
 
     var p = paddle.get('aabb');
     var b = ball.get('aabb');
-    vx = ball.get('transform').vx;
-    vy = ball.get('transform').vy;
+    var vx = ball.get('transform').vx;
+    var vy = ball.get('transform').vy;
 
     if (b.x + b.w + vx > game.width || b.x + vx < 0) {
         ball.get('transform').vx *= -1;
@@ -103,6 +110,8 @@ function mainloop() {
             ball.get('transform').vy *= -1;
         } else if (!outcome) {
             lives--;
+            livesCounter.get("textdisplay").text = "Lives: "+lives;
+            
             if(!lives) {
                 outcome = -1;
             } else {

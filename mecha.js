@@ -16,6 +16,7 @@ class Entity {
     }
 
     add(compObj) {
+        compObj.game = this.game;
         compObj.entity = this;
         this.components[compObj.name] = compObj;
     }
@@ -33,7 +34,7 @@ class Entity {
 class Component {
     constructor(name) {
         this.name = name;
-        this.game = game;
+        this.game = null;
         this.entity = null;
     }
     update() {}
@@ -42,7 +43,7 @@ class Component {
 
 class Transform extends Component {
     constructor(cx, cy, vx = 0, vy = 0) {
-        super('transform');
+        super("transform");
         this.cx = cx; this.cy = cy;
         this.vx = vx; this.vy = vy;
     }
@@ -54,7 +55,7 @@ class Transform extends Component {
 
 class AABB extends Component {
     constructor(w, h) {
-        super('aabb');
+        super("aabb");
         this.w = w; this.h = h;
     }
     get x() { return this.entity.get('transform').cx - this.w/2 }
@@ -69,25 +70,38 @@ class AABB extends Component {
 
 class BoxShape extends Component {
     constructor(color) { 
-        super('boxshape');
+        super("boxshape");
         this.color = color;
     }
     draw() {
-        var aabb = this.entity.get('aabb');
+        var aabb = this.entity.get("aabb");
         this.game.drawRect(this.color, aabb.x, aabb.y, aabb.w, aabb.h);
     }
 }
 
 class BallShape extends Component {
     constructor(color) { 
-        super('ballshape');
+        super("ballshape");
         this.color = color;
     }
     draw() {
         var transform = this.entity.get('transform');
-        var w = this.entity.get('aabb').w;
+        var w = this.entity.get("aabb").w;
         this.game.drawBall(this.color, transform.cx, transform.cy, w/2);
         // TODO: this should be code for creating an ellipse... height could be different from width
+    }
+}
+
+class TextDisplay extends Component {
+    constructor(color, font, text) {
+        super("textdisplay");
+        this.color = color;
+        this.font = font;
+        this.text = text;
+    }
+    draw() {
+        var transform = this.entity.get('transform');
+        this.game.drawText(this.color, this.font, this.text, transform.cx, transform.cy);
     }
 }
 
@@ -95,6 +109,7 @@ class Game {
     constructor(canvasID) {
         var canvas = document.getElementById(canvasID);
         this.ctx = canvas.getContext("2d");
+        this.ctx.textAlign = "center";
         this.width = canvas.width;
         this.height = canvas.height;
         this.keyState = {};
@@ -145,7 +160,7 @@ class Game {
         this.ctx.fill();
         this.ctx.closePath();
     }
-    write(color,font,x,y,text) {
+    drawText(color,font,text,x,y) {
         this.ctx.font = font;
         this.ctx.fillStyle = color;
         this.ctx.fillText(text, x, y);
