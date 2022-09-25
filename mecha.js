@@ -1,10 +1,30 @@
 class Game {
     constructor(canvasID) {
         var canvas = document.getElementById(canvasID);
-        this.ctx = canvas.getContext('2d');
+        this.ctx = canvas.getContext("2d");
         this.width = canvas.width;
         this.height = canvas.height;
+        this.keyState = {};
     }
+
+    registerKey(key) {
+        this.keyState[key] = false;
+    }
+    _keyDownHandler(e) {
+        if (Object.keys(this.keyState).includes(e.key)) {
+            this.keyState[e.key] = true
+        }
+    }
+    _keyUpHandler(e) {
+        if (Object.keys(this.keyState).includes(e.key)) {
+            this.keyState[e.key] = false
+        }
+    }
+    initKeyListeners() {
+        document.addEventListener("keydown", this._keyDownHandler.bind(this), false);
+        document.addEventListener("keyup", this._keyUpHandler.bind(this), false);
+    }
+
     clear() {
         this.ctx.clearRect(0, 0, this.width, this.height);
     }

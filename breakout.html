@@ -49,27 +49,9 @@ for(var c=0; c<brickColumnCount; c++) {
   }
 }
 
-document.addEventListener("keydown", keyDownHandler, false);
-document.addEventListener("keyup", keyUpHandler, false);
-//document.addEventListener("mousemove", mouseMoveHandler, false);
-
-function keyDownHandler(e) {
-    if(e.key == "Right" || e.key == "ArrowRight") {
-        rightPressed = true;
-    }
-    else if(e.key == "Left" || e.key == "ArrowLeft") {
-        leftPressed = true;
-    }
-}
-
-function keyUpHandler(e) {
-    if(e.key == "Right" || e.key == "ArrowRight") {
-        rightPressed = false;
-    }
-    else if(e.key == "Left" || e.key == "ArrowLeft") {
-        leftPressed = false;
-    }
-}
+game.registerKey("ArrowRight");
+game.registerKey("ArrowLeft");
+game.initKeyListeners();
 
 //function mouseMoveHandler(e) {
 //  var relativeX = e.clientX - canvas.offsetLeft;
@@ -94,17 +76,6 @@ function collisionDetection() {
       }
     }
   }
-}
-
-function drawScore() {
-  game.ctx.font = "16px Arial";
-  game.ctx.fillStyle = "#0095DD";
-  game.ctx.fillText("Score: "+score, 8, 20);
-}
-function drawLives() {
-  game.ctx.font = "16px Arial";
-  game.ctx.fillStyle = "#0095DD";
-  game.ctx.fillText("Lives: "+lives, game.width-65, 20);
 }
 
 function draw() {
@@ -152,10 +123,10 @@ function draw() {
       }
     }
 
-  if(rightPressed && paddleX < game.width-paddleWidth) {
+  if(game.keyState['ArrowRight'] && paddleX < game.width-paddleWidth) {
     paddleX += 7;
   }
-  else if(leftPressed && paddleX > 0) {
+  else if(game.keyState['ArrowLeft'] && paddleX > 0) {
     paddleX -= 7;
   }
 
