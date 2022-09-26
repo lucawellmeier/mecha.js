@@ -1,12 +1,23 @@
 class Entity {
-    constructor(game) {
+    constructor(game, type) {
         this.game = game;
+        this.type = type;
         this.components = {}
     }
 
-    update() {
+    init() {
         Object.values(this.components).forEach(comp => {
-            comp.update();
+            comp.init();
+        });
+    }
+    logic() {
+        Object.values(this.components).forEach(comp => {
+            comp.logic();
+        });
+    }
+    transform() {
+        Object.values(this.components).forEach(comp => {
+            comp.transform();
         });
     }
     draw() {
@@ -37,17 +48,19 @@ class Component {
         this.game = null;
         this.entity = null;
     }
-    update() {}
+    init() {}
+    logic() {}
+    transform() {}
     draw() {}
 }
 
 class Transform extends Component {
-    constructor(cx, cy, vx = 0, vy = 0) {
+    constructor(cx, cy) {
         super("transform");
         this.cx = cx; this.cy = cy;
-        this.vx = vx; this.vy = vy;
+        this.vx = 0; this.vy = 0;
     }
-    update() {
+    transform() {
         this.cx += this.vx;
         this.cy += this.vy;
     }
@@ -65,6 +78,24 @@ class AABB extends Component {
             && other.x + other.w >= this.x 
             && other.y <= this.y + this.h
             && other.y + other.h >= this.y;
+    }
+    sweepInto(other) {
+        var t = this.entity.get("transform");
+        var ot = other.entity.get("transform");
+        var scaleX = 1.0 / t.vx;
+        var scaleY = 1.0 / t.vy;
+        var signX = Math.sign(scaleX);
+        var signY = Math.sign(scaleY);
+        var nearTimeX = (ot.cx - signX * (this.w/2 + other.w/2) - t.cx) * scaleX;
+        var nearTimeY = (ot.cy - signY * (this.h/2 + other.h/2) - t.cy) * scaleY;
+        var farTimeX = (ot.cx + signX * (this.w/2 + other.w/2) - t.cx) * scaleX;
+        var farTimeY = (ot.cy + signY * (this.h/2 + other.h/2) - t.cy) * scaleY;     
+
+        if (nearTimeX > farTimeY || nearTimeY > farTimeX) return 1;
+        var nearTime = nearTimeX > nearTimeY ? nearTimeX : nearTimeY;
+        var farTime = farTimeX < farTimeY ? farTimeX : farTimeY;
+        if (nearTime >= 1 || farTime <= 0) return 1;
+        return Math.max(nearTime, 0);
     }
 }
 
@@ -114,12 +145,22 @@ class Game {
         this.height = canvas.height;
         this.keyState = {};
         this.entities = [];
+        this.toBeDeleted = [];
     }
 
-    createEntity() {
-        var entity = new Entity(this);
+    createEntity(type="") {
+        var entity = new Entity(this, type);
         this.entities.push(entity);
         return entity;
+    }
+    destroyEntity(target) {
+        this.toBeDeleted.push(target);
+        
+    }
+    init() {
+        this.entities.forEach(e => {
+            e.init();
+        });
     }
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
@@ -127,19 +168,37 @@ class Game {
             e.draw();
         });
     }
-    update() {
+    logic() {
         this.entities.forEach(e => {
-            e.update();
+            e.logic();
+        });
+    }
+    transform() {
+        this.entities.forEach(e => {
+            e.transform();
         });
     }
     _mainloop() {
         this.draw();
-        this._update_logic();
-        this.update();
+        this.logic();
+
+        this.toBeDeleted.forEach(target => {
+            this.entities = this.entities.filter(e => e !== target);
+            Object.keys(target.components).forEach(c => {
+                target.remove(c);
+            });
+            target.game = null;
+            target.type = "";
+        });
+        this.toBeDeleted = [];
+
+        this.transform();
         requestAnimationFrame(this._mainloop.bind(this));
     }
-    run(update_logic) {
-        this._update_logic = update_logic;
+    run() {
+        document.addEventListener("keydown", this._keyDownHandler.bind(this), false);
+        document.addEventListener("keyup", this._keyUpHandler.bind(this), false);
+        this.init();
         this._mainloop();
     }
 
@@ -155,10 +214,6 @@ class Game {
         if (Object.keys(this.keyState).includes(e.key)) {
             this.keyState[e.key] = false
         }
-    }
-    initKeyListeners() {
-        document.addEventListener("keydown", this._keyDownHandler.bind(this), false);
-        document.addEventListener("keyup", this._keyUpHandler.bind(this), false);
     }
 
     drawRect(color,x,y,w,h) {

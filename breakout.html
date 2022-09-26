@@ -21,117 +21,165 @@
     <script src="mecha.js"></script>
     <script>
 var game = new Game("myCanvas");
+
+var score = 0;
+var lives = 3;
+
+var scoreCounter = game.createEntity();
+scoreCounter.add(new Transform(55, 28));
+scoreCounter.add(new TextDisplay("black", "16px Arial", "Score: " + score));
+
+var livesCounter = game.createEntity();
+livesCounter.add(new Transform(game.width - 53, 28));
+livesCounter.add(new TextDisplay("black", "16px Arial", "Lives: " + lives));
+
+function endGame(outcome) {
+    ball.get("transform").vx = 0;
+    ball.get("transform").vy = 0;
+    ball.remove("ballcontroller");
+    paddle.get("transform").vx = 0;
+    paddle.get("transform").vy = 0;
+    paddle.remove("paddlecontroller");
+
+    outcomeDisplay = game.createEntity();
+    outcomeDisplay.add(new Transform(game.width/2, game.height/2));
+    outcomeDisplay.add(new TextDisplay("red", "48px Arial", "You lose..."));
+    if (outcome > 0) {
+        outcomeDisplay.get("textdisplay").color = "green";
+        outcomeDisplay.get("textdisplay").text = "You win!";
+    }
+}
+
+function hitBrick(brick) {
+    game.destroyEntity(brick);
+    score++;
+    scoreCounter.get("textdisplay").text = "Score: " + score;
+
+    if (score == brickRows * brickCols) {
+        endGame(1);
+    }
+}
+
+function hitZone() {
+    lives--;
+    livesCounter.get("textdisplay").text = "Lives: " + lives;
+    if (lives == 0) {
+        endGame(-1);
+    } else {
+        w = ball.get("aabb").w - 3;
+        v = Math.abs(ball.get("transform").vx) + 0.7;
+        game.destroyEntity(ball);
+
+        ball = game.createEntity();
+        ball.add(new Transform(game.width / 2, game.height - 30));
+        ball.add(new AABB(w,w));
+        ball.add(new BallShape("#FF351D"));
+        ball.add(new BallController(v,-v,[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
+        ball.init();
+    }
+}
+
+var wallLeft = game.createEntity();
+wallLeft.add(new Transform(0, game.height / 2));
+wallLeft.add(new AABB(10, game.height));
+wallLeft.add(new BoxShape("#9595DD"));
+var wallRight = game.createEntity();
+wallRight.add(new Transform(game.width, game.height / 2));
+wallRight.add(new AABB(10, game.height));
+wallRight.add(new BoxShape("#9595DD"));
+var wallTop = game.createEntity();
+wallTop.add(new Transform(game.width / 2, 0));
+wallTop.add(new AABB(game.width - 10, 10));
+wallTop.add(new BoxShape("#9595DD"));
+
 game.registerKey("ArrowRight");
 game.registerKey("ArrowLeft");
-game.initKeyListeners();
-
-var ball = game.createEntity();
-ball.add(new Transform(game.width / 2, game.height - 30, 3, -3));
-ball.add(new AABB(20, 20));
-ball.add(new BallShape("#0095DD"));
-
 var paddle = game.createEntity();
 paddle.add(new Transform(game.width / 2, game.height - 5));
 paddle.add(new AABB(75, 10));
 paddle.add(new BoxShape("#0095DD"));
+class PaddleController extends Component {
+    constructor(speed, dontpass) {
+        super("paddlecontroller");
+        this.speed = speed;
+        this.dontpass = dontpass;
+    }
+    logic() {
+        var transform = this.entity.get("transform");
+        var aabb = this.entity.get("aabb");
+
+        var left = game.keyState["ArrowLeft"] ? -1 : 0;
+        var right = game.keyState["ArrowRight"] ? 1 : 0;
+        transform.vx = this.speed * (left + right);
+
+        this.dontpass.forEach(e => {
+            var t = aabb.sweepInto(e.get("aabb"));
+            if (t < 1) {
+                transform.vx *= t;
+            }
+        });
+    }
+}
+paddle.add(new PaddleController(7, [wallLeft,wallRight]));
 
 var bricks = [];
 var brickRows = 3;
 var brickCols = 5;
 for(var i = 0; i < brickRows; i++) {
-    bricks.push([]);
     for(var j = 0; j < brickCols; j++) {
-        var brick = game.createEntity(); 
+        var brick = game.createEntity("brick"); 
         brick.add(new Transform(j*85 + 70, i*30 + 50));
         brick.add(new AABB(75, 20));
-        brick.add(new BoxShape("#0095DD"));
-        bricks[i].push(brick);
+        brick.add(new BoxShape("#CC9532"));
+        bricks.push(brick);
     }
 }
 
-var score = 0;
-var lives = 3;
-var outcome = 0;
-
-var scoreCounter = game.createEntity();
-scoreCounter.add(new Transform(55, 28));
-scoreCounter.add(new TextDisplay("#0095DD", "16px Arial", "Score: "+score));
-
-var livesCounter = game.createEntity();
-livesCounter.add(new Transform(game.width - 53, 28));
-livesCounter.add(new TextDisplay("#0095DD", "16px Arial", "Lives: "+lives));
-
-function update_logic() {
-    for(var i = 0; i < brickRows; i++) {
-        for(var j = 0; j < brickCols; j++) {
-            var brick = bricks[i][j];
-            if (!brick.has('aabb')) continue;
-            if (ball.get('aabb').intersects(brick.get('aabb'))) {
-                ball.get('transform').vy *= -1;
-                brick.remove('aabb');
-                brick.remove('boxshape');
-                score++;
-                scoreCounter.get("textdisplay").text = "Score: "+score;
-
-                if(score == brickRows*brickCols) {
-                    outcome = 1;
+var ball = game.createEntity();
+ball.add(new Transform(game.width / 2, game.height - 30));
+ball.add(new AABB(20, 20));
+ball.add(new BallShape("#FF351D"));
+class BallController extends Component {
+    constructor(vx, vy, verticals, horizontals) {
+        super("ballcontroller");
+        this.vx = vx;
+        this.vy = vy;
+        this.verticals = verticals;
+        this.horizontals = horizontals;
+    }
+    init() {
+        this.entity.get("transform").vx = this.vx;
+        this.entity.get("transform").vy = this.vy;
+    }
+    logic() {
+        var transform = this.entity.get("transform");
+        var aabb = this.entity.get("aabb");
+        
+        this.horizontals.forEach(e => {
+            if (!e.has("aabb")) return;
+            var t = aabb.sweepInto(e.get("aabb"));
+            if (t < 1) {
+                transform.vy *= -1;
+                if (e.type === "brick"){
+                    hitBrick(e);
                 }
-
-                return; // so that it doesn't collide with two in the same frame
             }
-        }
-    }
-
-    var p = paddle.get('aabb');
-    var b = ball.get('aabb');
-    var vx = ball.get('transform').vx;
-    var vy = ball.get('transform').vy;
-
-    if (b.x + b.w + vx > game.width || b.x + vx < 0) {
-        ball.get('transform').vx *= -1;
-    }
-    if (b.y + vy < 0) {
-        ball.get('transform').vy *= -1;
-    }
-    if (b.y + b.h + vy > p.y) {
-        if (b.x + vx + b.w/2 > p.x && b.x + vx - b.w/2 < p.x + p.w) {
-            ball.get('transform').vy *= -1;
-        } else if (!outcome) {
-            lives--;
-            livesCounter.get("textdisplay").text = "Lives: "+lives;
-            
-            if(!lives) {
-                outcome = -1;
-            } else {
-                ball.get('transform').cx = game.width / 2;
-                ball.get('transform').cy = game.height - 30;
-                ball.get('transform').vx = Math.abs(vx) + 0.5;
-                ball.get('transform').vy = -(Math.abs(vy) + 0.5);
-                paddle.get('transform').cx = game.width / 2;
+        });
+        this.verticals.forEach(e => {
+            var t = aabb.sweepInto(e.get("aabb"));
+            if (t < 1) {
+                transform.vx *= -1;
             }
-        }
-    }
+        });
 
-    if (!outcome) {
-        if (game.keyState['ArrowRight'] && p.x + p.w < game.width) {
-            paddle.get('transform').cx += 7;
-        } else if (game.keyState['ArrowLeft'] && p.x > 0) {
-            paddle.get('transform').cx -= 7;
+        if (aabb.y + aabb.h/2 + transform.vy > game.height) {
+            hitZone();
         }
-    } else {
-        ball.get("transform").vx = 0;
-        ball.get("transform").vy = 0;
     }
 }
+ball.add(new BallController(3,-3,[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
 
-//function mouseMoveHandler(e) {
-//  var relativeX = e.clientX - canvas.offsetLeft;
-//  if(relativeX > 0 && relativeX < canvas.width) {
-//    paddleX = relativeX - paddleWidth/2;
-//  }
-//}
-
-game.run(update_logic);
+game.run();
     </script>
   </body>
 </html>
