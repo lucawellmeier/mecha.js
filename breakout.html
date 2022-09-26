@@ -9,6 +9,8 @@
         margin: 0;
       }
       canvas {
+        /*TODO: this background color should be set by the user 
+        through JS secondo me*/
         background: #eee;
         display: block;
         margin: 0 auto;
@@ -20,6 +22,9 @@
 
     <script src="mecha.js"></script>
     <script>
+// TODO: need full control over canvas creations. there has to be
+// some DOM generation code in the engine that completely clears
+// the stage for me
 var game = new Game("myCanvas");
 
 var score = 0;
@@ -33,6 +38,9 @@ var livesCounter = game.createEntity();
 livesCounter.add(new Transform(game.width - 53, 28));
 livesCounter.add(new TextDisplay("black", "16px Arial", "Lives: " + lives));
 
+// TODO: these three functions together with the three variables on top
+// define a sort of game state and so should be encapsulated in a system
+// that allows switching easily between game states
 function endGame(outcome) {
     ball.get("transform").vx = 0;
     ball.get("transform").vy = 0;
@@ -155,6 +163,14 @@ class BallController extends Component {
         var transform = this.entity.get("transform");
         var aabb = this.entity.get("aabb");
         
+        // TODO: sometimes the collision with the paddle is buggy.
+        // this and the fact that the bricks dont have vertical AND
+        // horizontal colliders can be fixed once and for all if 
+        // I had better sweep collision code that knows the normal
+
+        // TODO: moreover it would be nice to have a sort of spin
+        // effect when you move faster or slower with the paddle
+        // in the same or in the opposite direction
         this.horizontals.forEach(e => {
             if (!e.has("aabb")) return;
             var t = aabb.sweepInto(e.get("aabb"));
@@ -178,6 +194,8 @@ class BallController extends Component {
     }
 }
 ball.add(new BallController(3,-3,[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
+// TODO: I dont like the excessive passing of arguments here. a simple
+// "find all by tag" should solve that easily
 
 game.run();
     </script>
