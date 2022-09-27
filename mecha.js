@@ -19,6 +19,7 @@ class Entity {
         Object.values(this.components).forEach(comp => {
             comp.transform();
         });
+        // TODO: transform components need to be the last in these loop
     }
     draw() {
         Object.values(this.components).forEach(comp => {
@@ -54,17 +55,73 @@ class Component {
     draw() {}
 }
 
+// TODO: make transform must-have for every object and provide quick access
+// in entities and components
 class Transform extends Component {
-    constructor(cx, cy) {
+    constructor(cx, cy, angle = 0) {
         super("transform");
         this.cx = cx; this.cy = cy;
         this.vx = 0; this.vy = 0;
+        this.angle = angle;
+        this.dangle = 0;
     }
     transform() {
         this.cx += this.vx;
         this.cy += this.vy;
+        this.vx = 0;
+        this.vy = 0;
+
+        this.angle += this.dangle;
+        this.dangle = 0;
     }
 }
+
+class BoxGeometry extends Component {
+    constructor(halfW, halfH, color=null) {
+        super("boxgeometry");
+        this.halfW = halfW;
+        this.halfH = halfH;
+        this.color = color;
+    }
+
+    get collider() {
+        var t = this.entity.get("transform");
+        var x = new Vector(1, 0);
+        x.rotate(t.angle);
+        return new Box(new Vector(t.cx, t.cy), this.halfW, this.halfH, x);
+    }
+
+    draw() {
+        if (this.color !== null) {
+            var t = this.entity.get("transform");
+            this.game.drawRect(this.color, 
+                t.cx - this.halfW, t.cy - this.halfH, 
+                2*this.halfW, 2*this.halfH, t.angle);
+        }
+    }
+}
+
+class BallGeometry extends Component {
+    constructor(radius, color=null) {
+        super("ballgeometry");
+        this.radius = radius;
+        this.color = color;
+    }
+
+    get collider() {
+        var t = this.entity.get("transform");
+        return new Ball(new Vector(t.cx, t.cy), this.radius);
+    }
+
+    draw() {
+        if (this.color !== null) {
+            var t = this.entity.get("transform");
+            this.game.drawBall(this.color, t.cx, t.cy, this.radius);
+        }
+    }
+}
+
+
 
 class AABB extends Component {
     constructor(w, h) {
@@ -106,7 +163,7 @@ class BoxShape extends Component {
     }
     draw() {
         var aabb = this.entity.get("aabb");
-        this.game.drawRect(this.color, aabb.x, aabb.y, aabb.w, aabb.h);
+        this.game.drawRect(this.color, aabb.x, aabb.y, aabb.w, aabb.h, 0);
     }
 }
 
@@ -162,6 +219,7 @@ class Game {
             e.init();
         });
     }
+    // TODO: pass a renderer object as parameter to each draw function
     draw() {
         this.ctx.clearRect(0, 0, this.width, this.height);
         this.entities.forEach(e => {
@@ -216,23 +274,31 @@ class Game {
         }
     }
 
-    drawRect(color,x,y,w,h) {
+    drawRect(color,x,y,w,h,angle) {
+        this.ctx.save();
+        this.ctx.translate(x + w/2, y + h/2);
+        this.ctx.rotate(angle);
         this.ctx.beginPath();
-        this.ctx.rect(x, y, w, h);
+        this.ctx.rect(-w/2, -h/2, w, h);
         this.ctx.fillStyle = color;
         this.ctx.fill();
         this.ctx.closePath();
+        this.ctx.restore();
     }
     drawBall(color,x,y,r) {
+        this.ctx.save();
         this.ctx.beginPath();
         this.ctx.arc(x, y, r, 0, Math.PI*2);
         this.ctx.fillStyle = color;
         this.ctx.fill();
         this.ctx.closePath();
+        this.ctx.restore();
     }
     drawText(color,font,text,x,y) {
+        this.ctx.save();
         this.ctx.font = font;
         this.ctx.fillStyle = color;
         this.ctx.fillText(text, x, y);
+        this.ctx.restore();
     }
 }

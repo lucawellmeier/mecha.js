@@ -16,8 +16,128 @@
         </style>
     </head>
     <body>
+        <!-- TODO: create a dynamic loading page for every single test together -->
         <canvas id="myCanvas" width="480" height="320"></canvas>
-        <!--<script src="mecha.js"></script>-->
+        <script src="mecha.js"></script>
         <script src="collisiontest.js"></script>
+<script>
+    var game = new Game("myCanvas");
+    game.registerKey("w");
+    game.registerKey("s");
+    game.registerKey("a");
+    game.registerKey("d");
+    game.registerKey("ArrowLeft");
+    game.registerKey("ArrowRight");
+
+    var wall = game.createEntity();
+    wall.add(new Transform(50, game.height/2+40, -0.2));
+    wall.add(new BoxGeometry(10, 100, "blue"));
+
+    var block = game.createEntity();
+    block.add(new Transform(390, game.height/2-40));
+    block.add(new BoxGeometry(30, 60, "purple"));
+
+    var ball = game.createEntity();
+    ball.add(new Transform(440, 270));
+    ball.add(new BallGeometry(35, "blue"));
+
+    var actor = game.createEntity();
+    actor.add(new Transform(game.width/2, game.height/2));
+    actor.add(new BallGeometry(20, "red"));
+    class ActorController extends Component {
+        constructor(speed) {
+            super("actorcontroller");
+            this.speed = speed;
+        }
+        logic() {
+            var t = this.entity.get("transform");
+            var geom = this.entity.get("ballgeometry").collider;
+            var right = new Vector(1,0);
+            var up = new Vector(0,-1);
+
+            var v = new Vector(0,0);
+            if (game.keyState["w"]) v.add(up);
+            if (game.keyState["s"]) v.subtract(up);
+            if (game.keyState["a"]) v.subtract(right);
+            if (game.keyState["d"]) v.add(right);
+            v.scale(this.speed);
+
+            var wallCollider = wall.get("boxgeometry").collider;
+            var rightSide = wallCollider.edges[1];
+            var hit = geom.sweepIntoBoxHull(v, wallCollider);
+            if (hit.hit) {
+                var p = add(geom.center, scale(hit.time, v));
+                this.game.fillStyle = "black";
+                this.game.ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+
+                if (hit.time <= 1) {
+                    v.scale(hit.time - 1e-8);
+                }
+            }
+
+            //var side = c.edges[1];
+            //var hit = geom.sweepIntoSegment(v, side);
+            //if (hit.hit) {
+            //    //console.log(hit.surfaceNormal);
+            //    var p = add(geom.center, scale(hit.time, v));
+            //    this.game.ctx.fillStyle = "black";
+            //    //this.game.ctx.fillRect(p.x - 2.5, p.y - 2.5, 5, 5);
+            //}
+
+            //var r = c.closestEdgeTime(new Vector(t.cx, t.cy));
+            //var p = c.edges[r["edge"]].pointFromTime(r["time"]);
+            //this.game.ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+
+            var c = block.get("boxgeometry").collider;
+
+            var p = new Vector(t.cx, t.cy);
+            var dir = new Vector(1000,-100);
+            var e = add(p, dir);
+            var ray = new Ray(p, dir);
+
+            //this.game.ctx.strokeStyle = "black";
+            //this.game.ctx.fillStyle = "black";
+            //var l = c.edges[3];
+            //var r = ray.castAtSegment(c.edges[3]);
+            //if (r.hit) {
+            //    this.game.ctx.strokeStyle = "green";
+            //    var target = ray.pointFromTime(r.time);
+            //    this.game.ctx.fillRect(target.x - 2, target.y - 2, 4, 4);
+            //}
+
+            this.game.ctx.strokeStyle = "black";
+            this.game.ctx.fillStyle = "black";
+            var l = c.edges[3];
+            var r = ray.castAtBox(c);
+            if (r.hit) {
+                this.game.ctx.strokeStyle = "green";
+                var target = ray.pointFromTime(r.time);
+                this.game.ctx.fillRect(target.x - 2, target.y - 2, 4, 4);
+            }
+
+            var b = ball.get("ballgeometry").collider;
+            var r2 = ray.castAtBall(b);
+            if (r2.hit) {
+                this.game.ctx.strokeStyle = "green";
+                var target = ray.pointFromTime(r2.time);
+                this.game.ctx.fillStyle = "black";
+                this.game.ctx.fillRect(target.x - 2, target.y - 2, 4, 4);
+            }
+
+            this.game.ctx.beginPath();
+            this.game.ctx.moveTo(p.x, p.y);
+            this.game.ctx.lineTo(e.x, e.y);
+            this.game.ctx.stroke();
+
+
+
+
+            t.vx = v.x; t.vy = v.y;
+        }
+    }
+    actor.add(new ActorController(5));
+
+    game.run();
+</script>
     </body>
 </html>
