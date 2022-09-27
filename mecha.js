@@ -68,11 +68,7 @@ class Transform extends Component {
     transform() {
         this.cx += this.vx;
         this.cy += this.vy;
-        this.vx = 0;
-        this.vy = 0;
-
         this.angle += this.dangle;
-        this.dangle = 0;
     }
 }
 
