@@ -20,6 +20,7 @@
   <body>
     <canvas id="myCanvas" width="480" height="320"></canvas>
 
+    <script src="collisiontest.js"></script>
     <script src="mecha.js"></script>
     <script>
 // TODO: need full control over canvas creations. there has to be
@@ -74,14 +75,13 @@ function hitZone() {
     if (lives == 0) {
         endGame(-1);
     } else {
-        w = ball.get("aabb").w - 3;
-        v = Math.abs(ball.get("transform").vx) + 0.7;
+        var r = ball.get("ballgeometry").radius - 1;
+        var v = Math.abs(ball.get("transform").vx) + 0.7;
         game.destroyEntity(ball);
 
         ball = game.createEntity();
         ball.add(new Transform(game.width / 2, game.height - 30));
-        ball.add(new AABB(w,w));
-        ball.add(new BallShape("#FF351D"));
+        ball.add(new BallGeometry(r, "#FF351D"));
         ball.add(new BallController(v,-v,[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
         ball.init();
     }
@@ -89,23 +89,19 @@ function hitZone() {
 
 var wallLeft = game.createEntity();
 wallLeft.add(new Transform(0, game.height / 2));
-wallLeft.add(new AABB(10, game.height));
-wallLeft.add(new BoxShape("#9595DD"));
+wallLeft.add(new BoxGeometry(5, game.height / 2, "#9595DD"));
 var wallRight = game.createEntity();
 wallRight.add(new Transform(game.width, game.height / 2));
-wallRight.add(new AABB(10, game.height));
-wallRight.add(new BoxShape("#9595DD"));
+wallRight.add(new BoxGeometry(5, game.height / 2, "#9595DD"));
 var wallTop = game.createEntity();
 wallTop.add(new Transform(game.width / 2, 0));
-wallTop.add(new AABB(game.width - 10, 10));
-wallTop.add(new BoxShape("#9595DD"));
+wallTop.add(new BoxGeometry((game.width - 10)/2, 5, "#9595DD"));
 
 game.registerKey("ArrowRight");
 game.registerKey("ArrowLeft");
 var paddle = game.createEntity();
 paddle.add(new Transform(game.width / 2, game.height - 5));
-paddle.add(new AABB(75, 10));
-paddle.add(new BoxShape("#0095DD"));
+paddle.add(new BoxGeometry(37.5, 5, "#0095DD"));
 class PaddleController extends Component {
     constructor(speed, dontpass) {
         super("paddlecontroller");
@@ -114,18 +110,25 @@ class PaddleController extends Component {
     }
     logic() {
         var transform = this.entity.get("transform");
-        var aabb = this.entity.get("aabb");
+        var collider = this.entity.get("boxgeometry").collider;
+        var aabox = new AABox(collider.center, collider.halfW, collider.halfH);
 
         var left = game.keyState["ArrowLeft"] ? -1 : 0;
         var right = game.keyState["ArrowRight"] ? 1 : 0;
         transform.vx = this.speed * (left + right);
 
+        var v = new Vector(transform.vx, transform.vy);
+
         this.dontpass.forEach(e => {
-            var t = aabb.sweepInto(e.get("aabb"));
-            if (t < 1) {
-                transform.vx *= t;
+            var c = e.get("boxgeometry").collider;
+            var otherAABox = new AABox(c.center, c.halfW, c.halfH);
+            var hit = aabox.sweepIntoAABox(v, otherAABox);
+            if (hit.hit && hit.time <= 1) {
+                v.x *= (hit.time - 1e-8);
             }
         });
+
+        transform.vx = v.x; transform.vy = v.y;
     }
 }
 paddle.add(new PaddleController(7, [wallLeft,wallRight]));
@@ -137,16 +140,14 @@ for(var i = 0; i < brickRows; i++) {
     for(var j = 0; j < brickCols; j++) {
         var brick = game.createEntity("brick"); 
         brick.add(new Transform(j*85 + 70, i*30 + 50));
-        brick.add(new AABB(75, 20));
-        brick.add(new BoxShape("#CC9532"));
+        brick.add(new BoxGeometry(37.5, 10, "#CC9532"));
         bricks.push(brick);
     }
 }
 
 var ball = game.createEntity();
 ball.add(new Transform(game.width / 2, game.height - 30));
-ball.add(new AABB(20, 20));
-ball.add(new BallShape("#FF351D"));
+ball.add(new BallGeometry(10, "#FF351D"));
 class BallController extends Component {
     constructor(vx, vy, verticals, horizontals) {
         super("ballcontroller");
@@ -161,8 +162,10 @@ class BallController extends Component {
     }
     logic() {
         var transform = this.entity.get("transform");
-        var aabb = this.entity.get("aabb");
+        var geom = this.entity.get("ballgeometry").collider;
         
+        var v = new Vector(transform.vx, transform.vy);
+
         // TODO: sometimes the collision with the paddle is buggy.
         // this and the fact that the bricks dont have vertical AND
         // horizontal colliders can be fixed once and for all if 
@@ -172,23 +175,25 @@ class BallController extends Component {
         // effect when you move faster or slower with the paddle
         // in the same or in the opposite direction
         this.horizontals.forEach(e => {
-            if (!e.has("aabb")) return;
-            var t = aabb.sweepInto(e.get("aabb"));
-            if (t < 1) {
-                transform.vy *= -1;
+            if (!e.has("boxgeometry")) return;
+            var hit = geom.sweepIntoBoxHull(v, e.get("boxgeometry").collider);
+            if (hit.hit && hit.time <= 1) {
+                v.y *= -1;
                 if (e.type === "brick"){
                     hitBrick(e);
                 }
             }
         });
         this.verticals.forEach(e => {
-            var t = aabb.sweepInto(e.get("aabb"));
-            if (t < 1) {
-                transform.vx *= -1;
+            var hit = geom.sweepIntoBoxHull(v, e.get("boxgeometry").collider);
+            if (hit.hit && hit.time <= 1) {
+                v.x *= -1;
             }
         });
 
-        if (aabb.y + aabb.h/2 + transform.vy > game.height) {
+        transform.vx = v.x; transform.vy = v.y;
+
+        if (geom.center.y + geom.radius + transform.vy > game.height) {
             hitZone();
         }
     }

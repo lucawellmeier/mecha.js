@@ -132,10 +132,10 @@ class Ray {
     castAtAABox(aabb) {
         var signX = Math.sign(this.direction.x);
         var signY = Math.sign(this.direction.y);
-        var nearTimeX = (aabb.center.x - signX * aabb.halfW - this.origin.x) / direction.x;
-        var nearTimeY = (aabb.center.y - signY * aabb.halfH - this.origin.y) / direction.y;
-        var farTimeX = (aabb.center.x + signX * aabb.halfW - this.origin.x) / direction.x;
-        var farTimeY = (aabb.center.y + signY * aabb.halfH - this.origin.y) / direction.y;
+        var nearTimeX = (aabb.center.x - signX * aabb.halfW - this.origin.x) / this.direction.x;
+        var nearTimeY = (aabb.center.y - signY * aabb.halfH - this.origin.y) / this.direction.y;
+        var farTimeX = (aabb.center.x + signX * aabb.halfW - this.origin.x) / this.direction.x;
+        var farTimeY = (aabb.center.y + signY * aabb.halfH - this.origin.y) / this.direction.y;
 
         if (nearTimeX > farTimeY || nearTimeY > farTimeX) {
             return new RaycastHit(false);
@@ -340,11 +340,11 @@ class AABox {
         return insideX && insideY;
     }
 
-    sweepIntoAAB(v, other) {
-        var inflated = new AABox(other.center, 
-            other.halfW + this.halfW, other.halfH + this.halfH);
+    sweepIntoAABox(v, other) {
+        var inflated = new Box(other.center, 
+            other.halfW + this.halfW, other.halfH + this.halfH, new Vector(1,0));
         var ray = new Ray(this.center, v);
-        return ray.castAtAABox(inflated);
+        return ray.castAtBox(inflated);
     }
 
     closestEdgeAndTimeTo(point) {
