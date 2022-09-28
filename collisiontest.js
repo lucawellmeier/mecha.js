@@ -1,47 +1,18 @@
 function clamp(x, min, max) {
-    return Math.max(Math.min(x, 1), 0);
+    return Math.max(Math.min(x, max), min);
 }
 
 // TODO: make everything a getter that can be...
 class Vector {
-    constructor(x, y) {
-        this.x = x;
-        this.y = y;
-    }
-    clone() {
-        return new Vector(this.x, this.y);
-    }
-    normSq() {
-        return this.x * this.x + this.y * this.y;
-    }
-    norm() {
-        return Math.sqrt(this.normSq());
-    }
-    add(other) {
-        this.x += other.x;
-        this.y += other.y;
-    }
-    subtract(other) {
-        this.x -= other.x;
-        this.y -= other.y;
-    }
-    scale(lambda) {
-        this.x *= lambda;
-        this.y *= lambda;
-    }
-    normalize() {
-        var n = this.norm();
-        this.scale(1/n);
-    }
-    getProjectionOf(point) {
-        return scale(dot(this, point) / this.normSq, this);
-    }
-    getRightPerp() {
-        return new Vector(-this.y, this.x);
-    }
-    getLeftPerp() {
-        return new Vector(this.y, -this.x);
-    }
+    constructor(x, y) { this.x = x; this.y = y; }
+    get clone() { return new Vector(this.x, this.y); }
+    get normSq() { return this.x * this.x + this.y * this.y; }
+    get norm() { return Math.sqrt(this.normSq); }
+    get rightPerp() { return new Vector(-this.y, this.x); }
+    get leftPerp() { return new Vector(this.y, -this.x); }
+    add(other) { this.x += other.x; this.y += other.y; return this; }
+    subtract(other) { this.x -= other.x; this.y -= other.y; return this; }
+    scale(lambda) { this.x *= lambda; this.y *= lambda; return this; }
     rotate(angle) {
         var x = this.x; var y = this.y;
         var c = Math.cos(angle);
@@ -49,31 +20,15 @@ class Vector {
         this.x = c * x - s * y;
         this.y = s * x + c * y;
     }
+    normalize() { this.scale(1 / this.norm); return this; }
 }
 
-function dot(v1, v2) {
-    return v1.x * v2.x + v1.y * v2.y;
-}
-
-function add(v1, v2) {
-    return new Vector(v1.x + v2.x, v1.y + v2.y);
-}
-
-function subtract(v1, v2) {
-    return new Vector(v1.x - v2.x, v1.y - v2.y);
-}
-
-function scale(lambda, v) {
-    return new Vector(lambda * v.x, lambda * v.y);
-}
-
-function negate(v) {
-    return scale(-1, v);
-}
-
-function normalize(v) {
-    return scale(1/v.norm(), v);
-}
+function dot(v1, v2) { return v1.x * v2.x + v1.y * v2.y; }
+function add(v1, v2) { return v1.clone.add(v2); }
+function subtract(v1, v2) { return v1.clone.subtract(v2); }
+function scale(lambda, v) { return v.clone.scale(lambda); }
+function rotate(theta, v) { return v.clone.rotate(theta); }
+function normalize(v) { return v.clone.normalize(); }
 
 class RaycastHit {
     constructor(hit) {
@@ -84,8 +39,8 @@ class RaycastHit {
 }
 class Ray {
     constructor(origin, direction) {
-        this.origin = origin;
-        this.direction = direction;
+        this.origin = origin.clone;
+        this.direction = direction.clone;
     }
 
     pointFromTime(t) {
@@ -95,7 +50,7 @@ class Ray {
     castAtSegment(segment) {
         var ao = subtract(this.origin, segment.a);
         var ab = subtract(segment.b, segment.a);
-        var ortho = this.direction.getRightPerp();
+        var ortho = this.direction.rightPerp;
         var proj = dot(ab, ortho);
         if (proj == 0) return new RaycastHit(false);
 
@@ -107,9 +62,9 @@ class Ray {
         hit.time = t1;
         var orientation = Math.sign(dot(ab, this.direction));
         if (orientation > 0) {
-            hit.surfaceNormal = normalize(ab.getRightPerp());
+            hit.surfaceNormal = normalize(ab.rightPerp);
         } else {
-            hit.surfaceNormal = normalize(ab.getLeftPerp());
+            hit.surfaceNormal = normalize(ab.leftPerp);
         }
         return hit;
     }
@@ -160,13 +115,13 @@ class Ray {
 
     // http://kylehalladay.com/blog/tutorial/math/2013/12/24/Ray-Sphere-Intersection.html
     castAtBall(ball) {
-        var normScale = this.direction.norm();
+        var normScale = this.direction.norm;
         var oc = subtract(ball.center, this.origin);
         var tc = dot(this.direction, oc) / normScale;
         if (tc < 0) return new RaycastHit(false);
 
         var tcsq = tc * tc;
-        var dsq = oc.normSq() - tcsq;
+        var dsq = oc.normSq - tcsq;
         var rsq = ball.radius * ball.radius;
         if (dsq > rsq) return new RaycastHit(false);
 
@@ -194,7 +149,7 @@ class Segment {
     }
 
     get length() {
-        return this.direction.norm();
+        return this.direction.norm;
     }
 
     get center() {
@@ -207,7 +162,7 @@ class Segment {
 
     timeClosestTo(point) {
         var v = subtract(point, this.a);
-        var projTime = dot(v, this.direction) / (this.direction.normSq());
+        var projTime = dot(v, this.direction) / (this.direction.normSq);
         return clamp(projTime, 0, 1);
     }
 }
@@ -221,7 +176,7 @@ class Ball {
     contains(point) {
         var rSq = this.radius*this.radius;
         var rel = subtract(point, this.center);
-        return rel.normSq() <= rSq;
+        return rel.normSq <= rSq;
     }
 
     sweepIntoSegment(v, segment) {
@@ -276,7 +231,7 @@ class Box {
         this.halfW = halfW;
         this.halfH = halfH;
         this.x = normalize(x);
-        this.y = this.x.getRightPerp();
+        this.y = this.x.rightPerp;
 
         this.vertices = [
             add(this.center, add(scale(-halfW, this.x), scale(-halfH, this.y))),
@@ -293,7 +248,7 @@ class Box {
                 this.edges.push(new Segment(this.vertices[3], this.vertices[0]));
             }
 
-            var n = this.edges[i].direction.getLeftPerp();
+            var n = this.edges[i].direction.leftPerp;
             this.normals.push(normalize(n));
         }
     }
@@ -305,7 +260,7 @@ class Box {
         for (var i = 0; i < 4; i++) {
             var t = this.edges[i].timeClosestTo(point);
             var pointOnEdge = this.edges[i].pointFromTime(t);
-            var distSq = subtract(pointOnEdge, point).normSq();
+            var distSq = subtract(pointOnEdge, point).normSq;
             if (distSq < minDistSq) {
                 minDistSq = distSq;
                 minT = t;
@@ -357,7 +312,7 @@ class AABox {
         for (var i = 0; i < 4; i++) {
             t = edges[i].timeClosestTo(point);
             pointOnEdge = edges[i].pointFromTime(t);
-            distSq = subtract(pointOnEdge, point).normSq();
+            distSq = subtract(pointOnEdge, point).normSq;
             if (distSq < minDistSq) {
                 minDistSq = distSq;
                 minT = t;

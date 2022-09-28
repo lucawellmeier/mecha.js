@@ -1,3 +1,20 @@
+class Transform {
+    constructor(cx = 0, cy = 0, angle = 0) {
+        this.cx = cx; this.cy = cy;
+        this.vx = 0; this.vy = 0;
+        this.angle = angle;
+        this.dangle = 0;
+    }
+
+    update() {
+        this.cx += this.vx;
+        this.cy += this.vy;
+        this.angle += this.dangle;
+    }
+}
+
+
+
 class Entity {
     constructor(game, type, transform = new Transform()) {
         this.game = game;
@@ -44,22 +61,6 @@ class Component {
     init() {}
     logic() {}
     draw() {}
-}
-
-// TODO: make transform must-have for every object and provide quick access
-// in entities and components
-class Transform {
-    constructor(cx = 0, cy = 0, angle = 0) {
-        this.cx = cx; this.cy = cy;
-        this.vx = 0; this.vy = 0;
-        this.angle = angle;
-        this.dangle = 0;
-    }
-    update() {
-        this.cx += this.vx;
-        this.cy += this.vy;
-        this.angle += this.dangle;
-    }
 }
 
 class BoxGeometry extends Component {
