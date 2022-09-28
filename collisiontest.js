@@ -1,8 +1,5 @@
-function clamp(x, min, max) {
-    return Math.max(Math.min(x, max), min);
-}
+function clamp(x, min, max) { return Math.max(Math.min(x, max), min); }
 
-// TODO: make everything a getter that can be...
 class Vector {
     constructor(x, y) { this.x = x; this.y = y; }
     get clone() { return new Vector(this.x, this.y); }
@@ -19,8 +16,13 @@ class Vector {
         var s = Math.sin(angle);
         this.x = c * x - s * y;
         this.y = s * x + c * y;
+        return this;
     }
     normalize() { this.scale(1 / this.norm); return this; }
+
+    static zero = new Vector(0,0);
+    static e1 = new Vector(1,0);
+    static e2 = new Vector(0,1);
 }
 
 function dot(v1, v2) { return v1.x * v2.x + v1.y * v2.y; }

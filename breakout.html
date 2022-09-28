@@ -31,24 +31,22 @@ var game = new Game("myCanvas");
 var score = 0;
 var lives = 3;
 
-var scoreCounter = game.createEntity(55, 28);
+var scoreCounter = game.createEntity(new Vector(55, 28));
 scoreCounter.add(new TextDisplay("black", "16px Arial", "Score: " + score));
 
-var livesCounter = game.createEntity(game.width - 53, 28);
+var livesCounter = game.createEntity(new Vector(game.width - 53, 28));
 livesCounter.add(new TextDisplay("black", "16px Arial", "Lives: " + lives));
 
 // TODO: these three functions together with the three variables on top
 // define a sort of game state and so should be encapsulated in a system
 // that allows switching easily between game states
 function endGame(outcome) {
-    ball.transform.vx = 0;
-    ball.transform.vy = 0;
+    ball.transform.v = Vector.zero;
     ball.remove("ballcontroller");
-    paddle.transform.vx = 0;
-    paddle.transform.vy = 0;
+    paddle.transform.v = Vector.zero;
     paddle.remove("paddlecontroller");
 
-    outcomeDisplay = game.createEntity(game.width/2, game.height/2);
+    outcomeDisplay = game.createEntity(new Vector(game.width/2, game.height/2));
     outcomeDisplay.add(new TextDisplay("red", "48px Arial", "You lose..."));
     if (outcome > 0) {
         outcomeDisplay.get("textdisplay").color = "green";
@@ -73,26 +71,26 @@ function hitZone() {
         endGame(-1);
     } else {
         var r = ball.get("ballgeometry").radius - 1;
-        var v = Math.abs(ball.transform.vx) + 0.7;
+        var v = Math.abs(ball.transform.v.x) + 0.7;
         game.destroyEntity(ball);
 
-        ball = game.createEntity(game.width / 2, game.height - 30);
+        ball = game.createEntity(new Vector(game.width / 2, game.height - 30));
         ball.add(new BallGeometry(r, "#FF351D"));
-        ball.add(new BallController(v,-v,[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
+        ball.add(new BallController(new Vector(v,-v),[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
         ball.init();
     }
 }
 
-var wallLeft = game.createEntity(0, game.height / 2);
+var wallLeft = game.createEntity(new Vector(0, game.height / 2));
 wallLeft.add(new BoxGeometry(5, game.height / 2, "#9595DD"));
-var wallRight = game.createEntity(game.width, game.height / 2);
+var wallRight = game.createEntity(new Vector(game.width, game.height / 2));
 wallRight.add(new BoxGeometry(5, game.height / 2, "#9595DD"));
-var wallTop = game.createEntity(game.width / 2, 0);
+var wallTop = game.createEntity(new Vector(game.width / 2, 0));
 wallTop.add(new BoxGeometry((game.width - 10)/2, 5, "#9595DD"));
 
 game.registerKey("ArrowRight");
 game.registerKey("ArrowLeft");
-var paddle = game.createEntity(game.width / 2, game.height - 5);
+var paddle = game.createEntity(new Vector(game.width / 2, game.height - 5));
 paddle.add(new BoxGeometry(37.5, 5, "#0095DD"));
 class PaddleController extends Component {
     constructor(speed, dontpass) {
@@ -106,20 +104,16 @@ class PaddleController extends Component {
 
         var left = game.keyState["ArrowLeft"] ? -1 : 0;
         var right = game.keyState["ArrowRight"] ? 1 : 0;
-        this.transform.vx = this.speed * (left + right);
-
-        var v = new Vector(this.transform.vx, this.transform.vy);
+        this.transform.v.x = this.speed * (left + right);
 
         this.dontpass.forEach(e => {
             var c = e.get("boxgeometry").collider;
             var otherAABox = new AABox(c.center, c.halfW, c.halfH);
-            var hit = aabox.sweepIntoAABox(v, otherAABox);
+            var hit = aabox.sweepIntoAABox(this.transform.v, otherAABox);
             if (hit.hit && hit.time <= 1) {
-                v.x *= (hit.time - 1e-8);
+                this.transform.v.x *= (hit.time - 1e-8);
             }
         });
-
-        this.transform.vx = v.x; this.transform.vy = v.y;
     }
 }
 paddle.add(new PaddleController(7, [wallLeft,wallRight]));
@@ -129,29 +123,26 @@ var brickRows = 3;
 var brickCols = 5;
 for(var i = 0; i < brickRows; i++) {
     for(var j = 0; j < brickCols; j++) {
-        var brick = game.createEntity(j*85 + 70, i*30 + 50, 0, "brick"); 
+        var brick = game.createEntity(new Vector(j*85 + 70, i*30 + 50), 0, "brick"); 
         brick.add(new BoxGeometry(37.5, 10, "#CC9532"));
         bricks.push(brick);
     }
 }
 
-var ball = game.createEntity(game.width / 2, game.height - 30);
+var ball = game.createEntity(new Vector(game.width / 2, game.height - 30));
 ball.add(new BallGeometry(10, "#FF351D"));
 class BallController extends Component {
-    constructor(vx, vy, verticals, horizontals) {
+    constructor(initialVel, verticals, horizontals) {
         super("ballcontroller");
-        this.vx = vx;
-        this.vy = vy;
+        this.initialVel = initialVel;
         this.verticals = verticals;
         this.horizontals = horizontals;
     }
     init() {
-        this.transform.vx = this.vx;
-        this.transform.vy = this.vy;
+        this.transform.v = this.initialVel.clone;
     }
     logic() {
         var geom = this.entity.get("ballgeometry").collider;
-        var v = new Vector(this.transform.vx, this.transform.vy);
 
         // TODO: sometimes the collision with the paddle is buggy.
         // this and the fact that the bricks dont have vertical AND
@@ -163,29 +154,27 @@ class BallController extends Component {
         // in the same or in the opposite direction
         this.horizontals.forEach(e => {
             if (!e.has("boxgeometry")) return;
-            var hit = geom.sweepIntoBoxHull(v, e.get("boxgeometry").collider);
+            var hit = geom.sweepIntoBoxHull(this.transform.v, e.get("boxgeometry").collider);
             if (hit.hit && hit.time <= 1) {
-                v.y *= -1;
+                this.transform.v.y *= -1;
                 if (e.type === "brick"){
                     hitBrick(e);
                 }
             }
         });
         this.verticals.forEach(e => {
-            var hit = geom.sweepIntoBoxHull(v, e.get("boxgeometry").collider);
+            var hit = geom.sweepIntoBoxHull(this.transform.v, e.get("boxgeometry").collider);
             if (hit.hit && hit.time <= 1) {
-                v.x *= -1;
+                this.transform.v.x *= -1;
             }
         });
 
-        this.transform.vx = v.x; this.transform.vy = v.y;
-
-        if (geom.center.y + geom.radius + this.transform.vy > game.height) {
+        if (geom.center.y + geom.radius + this.transform.v.y > game.height) {
             hitZone();
         }
     }
 }
-ball.add(new BallController(3,-3,[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
+ball.add(new BallController(new Vector(3,-3),[wallLeft,wallRight],[wallTop,paddle].concat(bricks)));
 // TODO: I dont like the excessive passing of arguments here. a simple
 // "find all by tag" should solve that easily
 

@@ -1,19 +1,16 @@
 class Transform {
-    constructor(cx = 0, cy = 0, angle = 0) {
-        this.cx = cx; this.cy = cy;
-        this.vx = 0; this.vy = 0;
+    constructor(pos = Vector.zero, angle = 0) {
+        this.pos = pos.clone;
+        this.v = Vector.zero.clone;
         this.angle = angle;
         this.dangle = 0;
     }
 
     update() {
-        this.cx += this.vx;
-        this.cy += this.vy;
+        this.pos.add(this.v);
         this.angle += this.dangle;
     }
 }
-
-
 
 class Entity {
     constructor(game, type, transform = new Transform()) {
@@ -72,19 +69,17 @@ class BoxGeometry extends Component {
     }
 
     get collider() {
-        var x = new Vector(1, 0);
-        x.rotate(this.transform.angle);
-        return new Box(new Vector(this.transform.cx, this.transform.cy), 
-            this.halfW, this.halfH, x);
+        return new Box(this.transform.pos, 
+            this.halfW, this.halfH, 
+            Vector.e1.clone.rotate(this.transform.angle));
     }
 
     draw() {
         if (this.color !== null) {
-            var t = this.entity.get("transform");
+            var half = new Vector(this.halfW, this.halfH);
             this.game.drawRect(this.color, 
-                this.transform.cx - this.halfW, 
-                this.transform.cy - this.halfH, 
-                2*this.halfW, 2*this.halfH, 
+                subtract(this.transform.pos, half), 
+                2 * this.halfW, 2 * this.halfH, 
                 this.transform.angle);
         }
     }
@@ -98,14 +93,13 @@ class BallGeometry extends Component {
     }
 
     get collider() {
-        return new Ball(new Vector(this.transform.cx, this.transform.cy), 
-            this.radius);
+        return new Ball(this.transform.pos, this.radius);
     }
 
     draw() {
         if (this.color !== null) {
             this.game.drawBall(this.color, 
-                this.transform.cx, this.transform.cy, this.radius);
+                this.transform.pos, this.radius);
         }
     }
 }
@@ -118,8 +112,8 @@ class TextDisplay extends Component {
         this.text = text;
     }
     draw() {
-        this.game.drawText(this.color, this.font, this.text, 
-            this.transform.cx, this.transform.cy);
+        this.game.drawText(this.color, this.font, 
+            this.text, this.transform.pos);
     }
 }
 
@@ -135,8 +129,8 @@ class Game {
         this.toBeDeleted = [];
     }
 
-    createEntity(cx, cy, angle=0, type="") {
-        var entity = new Entity(this, type, new Transform(cx, cy, angle));
+    createEntity(pos=Vector.zero, angle=0, type="") {
+        var entity = new Entity(this, type, new Transform(pos, angle));
         this.entities.push(entity);
         return entity;
     }
@@ -198,9 +192,9 @@ class Game {
         }
     }
 
-    drawRect(color,x,y,w,h,angle) {
+    drawRect(color,pos,w,h,angle) {
         this.ctx.save();
-        this.ctx.translate(x + w/2, y + h/2);
+        this.ctx.translate(pos.x + w/2, pos.y + h/2);
         this.ctx.rotate(angle);
         this.ctx.beginPath();
         this.ctx.rect(-w/2, -h/2, w, h);
@@ -209,20 +203,20 @@ class Game {
         this.ctx.closePath();
         this.ctx.restore();
     }
-    drawBall(color,x,y,r) {
+    drawBall(color,pos,r) {
         this.ctx.save();
         this.ctx.beginPath();
-        this.ctx.arc(x, y, r, 0, Math.PI*2);
+        this.ctx.arc(pos.x, pos.y, r, 0, Math.PI*2);
         this.ctx.fillStyle = color;
         this.ctx.fill();
         this.ctx.closePath();
         this.ctx.restore();
     }
-    drawText(color,font,text,x,y) {
+    drawText(color,font,text,pos) {
         this.ctx.save();
         this.ctx.font = font;
         this.ctx.fillStyle = color;
-        this.ctx.fillText(text, x, y);
+        this.ctx.fillText(text, pos.x, pos.y);
         this.ctx.restore();
     }
 }
