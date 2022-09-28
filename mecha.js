@@ -1,7 +1,8 @@
 class Entity {
-    constructor(game, type) {
+    constructor(game, type, transform = new Transform()) {
         this.game = game;
         this.type = type;
+        this.transform = transform;
         this.components = {}
     }
 
@@ -14,12 +15,7 @@ class Entity {
         Object.values(this.components).forEach(comp => {
             comp.logic();
         });
-    }
-    transform() {
-        Object.values(this.components).forEach(comp => {
-            comp.transform();
-        });
-        // TODO: transform components need to be the last in these loop
+        this.transform.update();
     }
     draw() {
         Object.values(this.components).forEach(comp => {
@@ -30,17 +26,12 @@ class Entity {
     add(compObj) {
         compObj.game = this.game;
         compObj.entity = this;
+        compObj.transform = this.transform;
         this.components[compObj.name] = compObj;
     }
-    get(comp) {
-        return this.components[comp];
-    }
-    remove(comp) {
-        delete this.components[comp];
-    }
-    has(comp) {
-        return Object.keys(this.components).includes(comp);
-    }
+    get(c) { return this.components[c]; }
+    remove(c) { delete this.components[c]; }
+    has(c) { return Object.keys(this.components).includes(c); }
 }
 
 class Component {
@@ -48,24 +39,23 @@ class Component {
         this.name = name;
         this.game = null;
         this.entity = null;
+        this.transform = null;
     }
     init() {}
     logic() {}
-    transform() {}
     draw() {}
 }
 
 // TODO: make transform must-have for every object and provide quick access
 // in entities and components
-class Transform extends Component {
-    constructor(cx, cy, angle = 0) {
-        super("transform");
+class Transform {
+    constructor(cx = 0, cy = 0, angle = 0) {
         this.cx = cx; this.cy = cy;
         this.vx = 0; this.vy = 0;
         this.angle = angle;
         this.dangle = 0;
     }
-    transform() {
+    update() {
         this.cx += this.vx;
         this.cy += this.vy;
         this.angle += this.dangle;
@@ -81,18 +71,20 @@ class BoxGeometry extends Component {
     }
 
     get collider() {
-        var t = this.entity.get("transform");
         var x = new Vector(1, 0);
-        x.rotate(t.angle);
-        return new Box(new Vector(t.cx, t.cy), this.halfW, this.halfH, x);
+        x.rotate(this.transform.angle);
+        return new Box(new Vector(this.transform.cx, this.transform.cy), 
+            this.halfW, this.halfH, x);
     }
 
     draw() {
         if (this.color !== null) {
             var t = this.entity.get("transform");
             this.game.drawRect(this.color, 
-                t.cx - this.halfW, t.cy - this.halfH, 
-                2*this.halfW, 2*this.halfH, t.angle);
+                this.transform.cx - this.halfW, 
+                this.transform.cy - this.halfH, 
+                2*this.halfW, 2*this.halfH, 
+                this.transform.angle);
         }
     }
 }
@@ -105,74 +97,15 @@ class BallGeometry extends Component {
     }
 
     get collider() {
-        var t = this.entity.get("transform");
-        return new Ball(new Vector(t.cx, t.cy), this.radius);
+        return new Ball(new Vector(this.transform.cx, this.transform.cy), 
+            this.radius);
     }
 
     draw() {
         if (this.color !== null) {
-            var t = this.entity.get("transform");
-            this.game.drawBall(this.color, t.cx, t.cy, this.radius);
+            this.game.drawBall(this.color, 
+                this.transform.cx, this.transform.cy, this.radius);
         }
-    }
-}
-
-
-
-class AABB extends Component {
-    constructor(w, h) {
-        super("aabb");
-        this.w = w; this.h = h;
-    }
-    get x() { return this.entity.get('transform').cx - this.w/2 }
-    get y() { return this.entity.get('transform').cy - this.h/2 }
-    intersects(other) {
-        return other.x <= this.x + this.w
-            && other.x + other.w >= this.x 
-            && other.y <= this.y + this.h
-            && other.y + other.h >= this.y;
-    }
-    sweepInto(other) {
-        var t = this.entity.get("transform");
-        var ot = other.entity.get("transform");
-        var scaleX = 1.0 / t.vx;
-        var scaleY = 1.0 / t.vy;
-        var signX = Math.sign(scaleX);
-        var signY = Math.sign(scaleY);
-        var nearTimeX = (ot.cx - signX * (this.w/2 + other.w/2) - t.cx) * scaleX;
-        var nearTimeY = (ot.cy - signY * (this.h/2 + other.h/2) - t.cy) * scaleY;
-        var farTimeX = (ot.cx + signX * (this.w/2 + other.w/2) - t.cx) * scaleX;
-        var farTimeY = (ot.cy + signY * (this.h/2 + other.h/2) - t.cy) * scaleY;     
-
-        if (nearTimeX > farTimeY || nearTimeY > farTimeX) return 1;
-        var nearTime = nearTimeX > nearTimeY ? nearTimeX : nearTimeY;
-        var farTime = farTimeX < farTimeY ? farTimeX : farTimeY;
-        if (nearTime >= 1 || farTime <= 0) return 1;
-        return Math.max(nearTime, 0);
-    }
-}
-
-class BoxShape extends Component {
-    constructor(color) { 
-        super("boxshape");
-        this.color = color;
-    }
-    draw() {
-        var aabb = this.entity.get("aabb");
-        this.game.drawRect(this.color, aabb.x, aabb.y, aabb.w, aabb.h, 0);
-    }
-}
-
-class BallShape extends Component {
-    constructor(color) { 
-        super("ballshape");
-        this.color = color;
-    }
-    draw() {
-        var transform = this.entity.get('transform');
-        var w = this.entity.get("aabb").w;
-        this.game.drawBall(this.color, transform.cx, transform.cy, w/2);
-        // TODO: this should be code for creating an ellipse... height could be different from width
     }
 }
 
@@ -184,8 +117,8 @@ class TextDisplay extends Component {
         this.text = text;
     }
     draw() {
-        var transform = this.entity.get('transform');
-        this.game.drawText(this.color, this.font, this.text, transform.cx, transform.cy);
+        this.game.drawText(this.color, this.font, this.text, 
+            this.transform.cx, this.transform.cy);
     }
 }
 
@@ -201,8 +134,8 @@ class Game {
         this.toBeDeleted = [];
     }
 
-    createEntity(type="") {
-        var entity = new Entity(this, type);
+    createEntity(cx, cy, angle=0, type="") {
+        var entity = new Entity(this, type, new Transform(cx, cy, angle));
         this.entities.push(entity);
         return entity;
     }
@@ -227,11 +160,6 @@ class Game {
             e.logic();
         });
     }
-    transform() {
-        this.entities.forEach(e => {
-            e.transform();
-        });
-    }
     _mainloop() {
         this.draw();
         this.logic();
@@ -246,7 +174,6 @@ class Game {
         });
         this.toBeDeleted = [];
 
-        this.transform();
         requestAnimationFrame(this._mainloop.bind(this));
     }
     run() {
